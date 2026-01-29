@@ -1,0 +1,21 @@
+# 1. Ignora TUTTO (file e cartelle nella root)
+/*
+
+# 2. NON ignorare il file .gitignore stesso (importante!)
+!/.gitignore
+
+# 3. NON ignorare le cartelle che vuoi tenere
+!/Abaqus simulations/Scripts/
+!/DL code/data/data_fitting.py
+!/DL code/data/dataset.py
+!/DL code/data/physics_scaler.py
+!/DL code/data/preprocess_data.py
+!/DL code/data/scaler_params.pt 
+!/DL code/loss_functions/
+!/DL code/models/
+!/DL code/training/
+!/DL code/utils/
+!/DL code/config.py
+
+
+
