@@ -1,0 +1,29 @@
+# ===============================
+# Abaqus simulations
+# ===============================
+
+# Ignora tutto
+Abaqus simulations/*
+
+# Ri-abilita Scripts e il suo contenuto
+!Abaqus simulations/Scripts/
+!Abaqus simulations/Scripts/**
+
+
+# ===============================
+# Altre cartelle da ignorare
+# ===============================
+
+Old code/
+Utilities/
+DL code/NW Training/
+DL code/data/processed_data/
+DL code/data/processed_data_no_times/
+
+
+# ===============================
+# File di sistema
+# ===============================
+
+.DS_Store
+Thumbs.db
