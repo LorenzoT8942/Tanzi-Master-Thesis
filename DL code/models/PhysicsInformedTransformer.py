@@ -72,7 +72,7 @@ class PhysicsInformedTransformer(nn.Module):
         """
         Args:
             physics_params: Tensor (Batch, num_physics_params) - Dati dal JSON
-            past_frames: Tensor (Batch, Seq_Len, num_nodes*3) - Dati dal CSV (storia)
+            past_frames: Tensor (Batch, Seq_Len, num_nodes*3) - Dati dal CSV (Intera simulazione)
         
         Returns:
             prediction: Tensor (Batch, Seq_Len, num_nodes*3) - Predizione del prossimo step
@@ -84,7 +84,7 @@ class PhysicsInformedTransformer(nn.Module):
         # Embed della sequenza temporale degli spostamenti
         state_emb = self.state_embedding(past_frames) # (Batch, Seq_Len, d_model)
         
-        # B. Concatenazione (Prompting Fisico)
+        # B. Concatenazione
         # Prepariamo la sequenza: [Parametri Fisici, Frame_t0, Frame_t1, ... Frame_tn]
         # Il modello userà i parametri fisici come contesto globale per generare la dinamica
         tokens = torch.cat([phys_emb, state_emb], dim=1)

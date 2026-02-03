@@ -3,7 +3,13 @@ import torch
 
 BASE_DATASET_PATH = "../Abaqus simulations/Mooney-Rivlin simulations"
 PT_DATASET_PATH   = "../data/processed_data"
+CHECKPOINT_DIR     = "./checkpoints"
 LOG_FILE = "training_log.csv"
+DATASET_SPLIT_FILE = "./dataset_splits.json"
+CSV_OUTPUT_DIR = "./predictions_csv"
+PLOT_OUTPUT_DIR = "./plots"
+COORDINATES_FILE = "./plate_initial_coordinates.csv"
+SCALER_PATH = "../data/scaler_params.pt"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -63,3 +69,28 @@ SOBOLEV_LOSS_WEIGHTS = {
     'alpha_vel': 1.0,
     'alpha_acc': 0.01
 }
+
+#WINNING CONFIG
+"""
+BATCH_SIZE = 2          
+NUM_EPOCHS = 200
+LEARNING_RATE = 1e-4
+
+MAX_DATASET_SAMPLES = 10000
+
+#Transformer parameters
+D_MODEL = 512
+DIM_FEEDFORWARD = D_MODEL * 4
+N_HEADS = 8
+NUM_LAYERS = 12
+DROPOUT = 0.0
+
+# Parametri Reduce on Plateau
+REDUCE_ON_PLATEAU_PARAMS = {
+    'mode': 'min',
+    'lr_factor': 0.5,
+    'patience': 4,
+    'min_lr': 1e-6,
+    'start_lr': 1e-5,
+}
+"""
