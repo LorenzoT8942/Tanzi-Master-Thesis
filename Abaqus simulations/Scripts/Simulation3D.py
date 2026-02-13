@@ -25,7 +25,7 @@ class Simulation3D():
 
     def __init__( self ):
 
-        self.DEBUG = False
+        self.DEBUG = True
 
         # PARAMETERS
         self.index          = None
@@ -216,6 +216,7 @@ class Simulation3D():
         del mdb.models['Model-1']
 
 
+        if self.DEBUG: log("Creating Plate parts...")
 
         #----------- crea PARTI e SET: plate -----------#
 
@@ -255,7 +256,7 @@ class Simulation3D():
         # set tutte  le superfici esterni, per l'output
         part_plate.Set( name = 'surface-all', faces = part_plate.faces )
         
-
+        if self.DEBUG: log("Creating Circle parts...")
 
         #----------- crea PARTI e SET: palla -----------#
 
@@ -291,11 +292,13 @@ class Simulation3D():
         part_circle_xz_plane = part_circle.DatumPlaneByPrincipalPlane(principalPlane = abaqusConstants.XZPLANE, offset = 0.0)
         part_circle_yz_plane = part_circle.DatumPlaneByPrincipalPlane(principalPlane = abaqusConstants.YZPLANE, offset = 0.0)
 
+        if self.DEBUG: log("Sospetto")
         # partiziona superficie
         part_circle.PartitionFaceByDatumPlane(faces = part_circle.faces, datumPlane = part_circle.datums[part_circle_xy_plane.id])
         part_circle.PartitionFaceByDatumPlane(faces = part_circle.faces, datumPlane = part_circle.datums[part_circle_xz_plane.id])
         part_circle.PartitionFaceByDatumPlane(faces = part_circle.faces, datumPlane = part_circle.datums[part_circle_yz_plane.id])
-
+        if self.DEBUG: log("Fatto")
+        
         # set con tutta la palla, per il materiale e per il reference point
         part_circle.Set( name  = 'set-all', 
                         cells = part_circle.cells )
@@ -305,24 +308,17 @@ class Simulation3D():
         part_circle.Surface( name = 'surface', side1Faces = part_circle.faces )
 
 
-
+        if self.DEBUG: log("Creating Materials and Sections...")
         #----------- MATERIALI -----------#
 
         material_plate = model.Material( name = 'material-plate')
         material_plate.Density( table = self.rubber_density )
-
-        """
-        material_plate.Hyperelastic( type = abaqusConstants.NEO_HOOKE, 
-                                     table = self.rubber_neo_hooke,
-                                     testData = abaqusConstants.OFF )
-        """
 
         material_plate.Hyperelastic(
         type=abaqusConstants.MOONEY_RIVLIN, 
         table=self.rubber_mooney_rivlin, 
         testData=OFF
         )
-        
 
         # --- SMORZAMENTO (Rayleigh Damping) ---
         # Alpha: Smorzamento proporzionale alla massa (frena le basse frequenze/moti corpo rigido)
@@ -359,6 +355,7 @@ class Simulation3D():
 
 
 
+        if self.DEBUG: log("Meshing Parts...")
 
         #----------- ASSEMBLY (istanzia e posiziona parti) -----------#
 
@@ -402,6 +399,8 @@ class Simulation3D():
                                                            abaqusConstants.BELOW_MIN, 
                                                            0, 0, 0.0, 0.0, 0, None), ),
                                              timeIncrementationMethod = abaqusConstants.AUTOMATIC_GLOBAL )
+        
+        
         """
 
         step_1 = model.ExplicitDynamicsStep( name                     = 'Step-1', 
@@ -625,14 +624,6 @@ class Simulation3D():
                 nodes=part_circle.nodes[n])
 
 
-        '''
-        # printa quanti nodi ha la palla
-        log("radius " + str(self.circle_radius))
-        log("quantita' nodi palla:" + str(len(part_circle.nodes)))
-        '''
-
-
-
         #----------- JOB -----------#
 
         JOB_NAME = "Simulation_Job_" + str(self.index)
@@ -640,7 +631,7 @@ class Simulation3D():
         # Imposta il numero di core (numCpus). 
         # Metti un numero inferiore ai tuoi core totali (es. se hai 8 core, metti 6).
         # numDomains deve essere uguale a numCpus per Abaqus/Explicit.
-        NUM_CORES = 1
+        NUM_CORES = 4
 
         job      = mdb.Job( name  = JOB_NAME, 
                             model = MODEL_NAME,
@@ -764,22 +755,6 @@ class Simulation3D():
         #outputRegionCircle = odb.rootAssembly.instances['CIRCLE'].nodeSets['SET-ALL']
         outputRegionCircleExternal = odb.rootAssembly.instances['CIRCLE'].nodeSets['SURFACE']
 
-        """
-        # SAVING CIRCLE VELOCITY
-        if SAVECIRCLEVELOCITY:
-            
-            region = odb.steps['Step-1'].historyRegions['Node ASSEMBLY.1']
-            v2Data = region.historyOutputs['V2_FILTER-1'].data
-            
-            velocity_df = pd.DataFrame( { 'Time'     : [ time for time, _ in v2Data ] ,
-                                        'Velocity' : [ v2   for _, v2   in v2Data ] } )
-            
-            velocity_output_filename = os.path.join(self.new_path, str(self.index) + '_circle_velocity_y.csv')
-        
-        
-            velocity_df.to_csv(velocity_output_filename, index = False)
-        """
-
 
         # SAVING COORDINATES OF PLATE
         if SAVEPLATECOORDINATES:
@@ -822,46 +797,52 @@ class Simulation3D():
 
 
         # SAVING PLATE DISPLACEMENTS
-        
         if SAVEDISPLACEMENT:
             
-            log("Extracting plate displacements for all frames...")
+            log("Extracting plate displacements using Pandas Chunks (Fast & Clean)...")
 
-            # 1. Definisci il nome del file di output
-            displacement_output_filename = os.path.join( self.new_path, str(self.index) + '_output_displacement_all_frames.csv' )
+            displacement_output_filename = os.path.join(self.new_path, str(self.index) + '_output_displacement_all_frames.csv')
             
-            # 2. Crea una lista per contenere tutti i dati
-            all_displacements_data = []
+            with open(displacement_output_filename, 'w') as f:
+                f.write("Time,Id,X_Disp,Y_Disp,Z_Disp\n")
             
-            # 3. Itera su TUTTI i frame disponibili
+            # 2. Iteriamo sui frame e usiamo Pandas in modalità "append"
             for frame in odb.steps['Step-1'].frames:
                 
-                frame_time = frame.frameValue  # Tempo di simulazione per questo frame
+                frame_time = frame.frameValue
                 
-                # Estrai il campo 'U' (displacement) per questo frame
-                displacement_field = frame.fieldOutputs['U'].getSubset( region = outputRegionExternal )
+                # Estrazione veloce vettoriale (bulk)
+                u_field = frame.fieldOutputs['U'].getSubset(region=outputRegionExternal)
                 
-                # 4. Aggiungi i dati di ogni nodo alla lista
-                for value in displacement_field.values:
-                    all_displacements_data.append([
-                        frame_time,         # Colonna Tempo
-                        value.nodeLabel,    # Colonna Id
-                        value.data[0],      # Colonna X_Disp
-                        value.data[1],      # Colonna Y_Disp
-                        value.data[2]       # Colonna Z_Disp
-                    ])
-
-            # 5. Converti la lista in un DataFrame Pandas
-            displacement_df = pd.DataFrame( 
-                all_displacements_data, 
-                columns = ['Time', 'Id', 'X_Disp', 'Y_Disp', 'Z_Disp'] 
-            )
-            
-            # 6. Salva il file CSV
-            displacement_df.to_csv( displacement_output_filename, index = False )
+                for block in u_field.bulkDataBlocks:
+                    
+                    # Dati grezzi dal blocco (Numpy array)
+                    node_labels = block.nodeLabels
+                    data        = block.data # [Ux, Uy, Uz]
+                    num_nodes   = len(node_labels)
+                    
+                    # Creiamo la colonna del tempo
+                    times = np.full(num_nodes, frame_time)
+                    
+                    # 3. Creiamo un DataFrame TEMPORANEO solo per questo blocco
+                    df_chunk = pd.DataFrame({
+                        'Time'  : times,
+                        'Id'    : node_labels,
+                        'X_Disp': data[:, 0],
+                        'Y_Disp': data[:, 1],
+                        'Z_Disp': data[:, 2]
+                    })
+                    
+                    # Assicuriamoci che l'ID sia scritto come intero (senza decimali)
+                    df_chunk['Id'] = df_chunk['Id'].astype(int)
+                    
+                    # 4. Appendiamo al CSV
+                    df_chunk.to_csv(displacement_output_filename, 
+                                    mode='a',        # append
+                                    header=False,    # header già scritto
+                                    index=False)     # niente indice 0,1,2...
 
             log(f"Saved all displacements to {displacement_output_filename}")
-
 
         #----------- SAVING DATABASE -----------#
         
@@ -908,34 +889,3 @@ class Simulation3D():
         os.chdir( self.previous_path )
 
         return (simulation_length, simulation_completed)
-
-
-
-#'''
-########## DA TOGLIERE ##########
-"""
-idx = 0
-radius = 3.0
-velocity = 1000
-alpha_Y = 0 #38
-alpha_X = 0 #-180
-
-start = time.time()
-
-sim = Simulation3D()
-(simulation_length, simulation_completed) = sim.runSimulation(
-    CIRCLE_RADIUS   = radius,
-    CIRCLE_VELOCITY = velocity,
-    ALPHA_Y         = alpha_Y,
-    ALPHA_X         = alpha_X,
-    SIMULATION_ID   = idx,
-    SAVEPLATECOORDINATES = True
-)
-
-simulation_time = str(time.time() - start)
-
-log("sim length: " + str(simulation_length))
-log("completed: " + str(simulation_completed))
-log("sim total time: " + simulation_time)
-#'''
-"""
