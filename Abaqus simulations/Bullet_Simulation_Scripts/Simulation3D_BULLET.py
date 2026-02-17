@@ -42,7 +42,6 @@ class Simulation3D_BULLET():
         self.bullet_radius         = None
         self.bullet_impact_angle_x = None
         self.bullet_impact_angle_y = None
-        self.bullet_impact_angle_z = None
         
         
         #*****************
@@ -112,6 +111,8 @@ class Simulation3D_BULLET():
         
         
     def _saveInputDataToFile(self):
+
+        
         
         inputData = { "index"                 : self.index,
                       "bullet_speed_x"        : self.bullet_speed_x,
@@ -120,9 +121,9 @@ class Simulation3D_BULLET():
                       "bullet_speed"          : self.bullet_speed,
                       "bullet_impact_angle_x" : self.bullet_impact_angle_x,
                       "bullet_impact_angle_y" : self.bullet_impact_angle_y,
-                      "bullet_impact_angle_z" : self.bullet_impact_angle_z,
                       "bullet_radius"         : self.bullet_radius }
-                          
+
+        log(f"Saving input data to file: {inputData}")            
         
         #******************************************
         # SAVE TO A FILE NAMED "<INDEX>_INPUT.JSON"
@@ -137,11 +138,13 @@ class Simulation3D_BULLET():
     def runSimulation( self,
                        BULLET_RADIUS,
                        BULLET_SPEED,
-                       BULLET_X_CENTER,
-                       BULLET_Y_CENTER,
-                       BULLET_Z_CENTER,
+                       #BULLET_X_CENTER,
+                       #BULLET_Y_CENTER,
+                       #BULLET_Z_CENTER,
                        SIMULATION_ID,
                        LENGTH_SIDE_RATIO,
+                       ALPHA_Y,
+                       ALPHA_X,
                        SAVEINPUTDATA        = True, 
                        SAVEBULLETSPEED      = True,
                        SAVEDISPLACEMENT     = True, 
@@ -158,6 +161,8 @@ class Simulation3D_BULLET():
         #**************************
         Mdb()
         
+        log(f"Initialized new Abaqus environment for simulation {SIMULATION_ID}.")
+        log(f"Bullet parameters: radius={BULLET_RADIUS:.2f} mm, speed={BULLET_SPEED:.2f} mm/s, angle_y={ALPHA_Y:.2f}°, angle_x={ALPHA_X:.2f}°, length_side_ratio={LENGTH_SIDE_RATIO:.2f}")
         
         #******************
         # SAVING PARAMETERS
@@ -171,9 +176,6 @@ class Simulation3D_BULLET():
         #**************************************
         # INITIAL POSITION OF THE BULLET CENTER
         #**************************************
-        self.bullet_origin_x = BULLET_X_CENTER
-        self.bullet_origin_y = BULLET_Y_CENTER
-        self.bullet_origin_z = BULLET_Z_CENTER
         self.bullet_length   = self.length_side_ratio * self.bullet_radius   # YOU CAN INCREASE/DECREASE (4–8 RECOMMENDED)
         
         
@@ -185,6 +187,27 @@ class Simulation3D_BULLET():
         
         self.simulation_time_perc = 0.1          #PERCENTAGE
         self.TIME_TO_IMPACT       = 2 / 30
+
+        # Time for the bullet to reach the plate, fixed
+        self.TIME_TO_IMPACT = 2/30
+
+        # Length of the trajectory that we need for the bullet to take the desired time to reach the plate
+        self.trajectory = abs(self.TIME_TO_IMPACT * self.bullet_speed) + self.bullet_length / 2
+
+        # The initial X and Y of the bullet are computed using the desired trajectory length and the angle
+        self.bullet_origin_y = self.trajectory * math.cos(math.radians(ALPHA_Y)) + self.bullet_length / 2
+        self.bullet_origin_x = - self.trajectory * math.sin(math.radians(ALPHA_Y)) * math.cos(math.radians(ALPHA_X))
+        self.bullet_origin_z = - self.trajectory * math.sin(math.radians(ALPHA_Y)) * math.sin(math.radians(ALPHA_X))
+
+        log(f"Calculated bullet origin: x={self.bullet_origin_x:.4f} mm, y={self.bullet_origin_y:.4f} mm, z={self.bullet_origin_z:.4f} mm")
+        log(f"Calculated trajectory length: {self.trajectory:.4f} mm, expected time to impact: {self.TIME_TO_IMPACT:.4f} s")
+
+        self.bullet_speed_y = - self.bullet_speed * math.cos(math.radians(ALPHA_Y))
+        self.bullet_speed_x = self.bullet_speed * math.sin(math.radians(ALPHA_Y)) * math.cos(math.radians(ALPHA_X))
+        self.bullet_speed_z = self.bullet_speed * math.sin(math.radians(ALPHA_Y)) * math.sin(math.radians(ALPHA_X))
+        
+        self.bullet_impact_angle_y = ALPHA_Y
+        self.bullet_impact_angle_x = ALPHA_X
         
         #************************
         # SIMULATION ELAPSED TIME
@@ -498,23 +521,24 @@ class Simulation3D_BULLET():
         #******************************************
         # CALCULATING SPEED MAGNITUDE OF THE BULLET
         #******************************************
-        A                          = np.array( object = [self.plate_origin_x,   self.plate_origin_y,  self.plate_origin_z], dtype = float )
-        B                          = np.array( object = [self.bullet_origin_x, self.bullet_origin_y, self.bullet_origin_z], dtype = float )
-        direction                  = A - B
-        distance                   = np.linalg.norm(direction)
-        unit_direction             = direction / distance
-        velocity                   = self.bullet_speed * unit_direction
-        cosines                    = velocity / self.bullet_speed
-        angles                     = np.arccos(cosines)
-        self.bullet_impact_angle_x = angles[0]
-        self.bullet_impact_angle_y = angles[1]
-        self.bullet_impact_angle_z = angles[2]
-        self.bullet_speed_x        = velocity[0]
-        self.bullet_speed_y        = velocity[1]
-        self.bullet_speed_z        = velocity[2]
+        #A                          = np.array( object = [self.plate_origin_x,   self.plate_origin_y,  self.plate_origin_z], dtype = float )
+        #B                          = np.array( object = [self.bullet_origin_x, self.bullet_origin_y, self.bullet_origin_z], dtype = float )
+        #direction                  = A - B
+        #distance                   = np.linalg.norm(direction)
+        #unit_direction             = direction / distance
+        #velocity                   = self.bullet_speed * unit_direction
+        #cosines                    = velocity / self.bullet_speed
+        #angles                     = np.arccos(cosines)
+
+        #self.bullet_speed_y = - self.bullet_speed * math.cos(math.radians(ALPHA_Y))
+        #self.bullet_speed_x = self.bullet_speed * math.sin(math.radians(ALPHA_Y)) * math.cos(math.radians(ALPHA_X))
+        #self.bullet_speed_z = self.bullet_speed * math.sin(math.radians(ALPHA_Y)) * math.sin(math.radians(ALPHA_X))
+
+        #self.bullet_impact_angle_x = angles[0]
+        #self.bullet_impact_angle_y = angles[1]
+        #self.bullet_impact_angle_z = angles[2]
+
         
-        
-       
         
         
         #**************************************************

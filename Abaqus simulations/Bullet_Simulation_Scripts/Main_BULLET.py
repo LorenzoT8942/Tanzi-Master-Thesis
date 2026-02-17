@@ -65,6 +65,8 @@ def Main():
     BULLET_X_CENTER   = [-PLATE_WIDTH/2, +PLATE_WIDTH/2]
     BULLET_Y_CENTER   = [-PLATE_WIDTH/2, +PLATE_WIDTH/2]
     BULLET_Z_CENTER   = [-PLATE_WIDTH/2, +PLATE_WIDTH/2]
+    ALPHA_Y_RANGE = [0, 60]             
+    ALPHA_X_RANGE = [-180, 180]
     INFO_FILE_PATH    = "Simulations_Info_" + str(idx_start) + "_" + str(idx_end) + ".csv"
     
     
@@ -80,9 +82,9 @@ def Main():
                                     "COMPLETED",
                                     "INIT_SPEED",
                                     "BULLET_RADIUS",
-                                    "BULLET_X_CENTER",
-                                    "BULLET_Y_CENTER",
-                                    "BULLET_Z_CENTER",
+                                    #"BULLET_X_CENTER",
+                                    #"BULLET_Y_CENTER",
+                                    #"BULLET_Z_CENTER",
                                     "ANGLE_1",
                                     "ANGLE_2" ] )
     
@@ -117,13 +119,16 @@ def Main():
             #**************************************
             radius          = random.uniform(RADIUS_RANGE[0], RADIUS_RANGE[1])
             speed           = random.uniform(SPEED_RANGE[0], SPEED_RANGE[1])
-            angle1          = random.uniform(0, 30)
-            angle2          = random.uniform(0, 30)
+            #angle1          = random.uniform(0, 30)
+            #angle2          = random.uniform(0, 30)
+            angle1          = random.uniform(ALPHA_Y_RANGE[0], ALPHA_Y_RANGE[1])
+            angle2          = random.uniform(ALPHA_X_RANGE[0], ALPHA_X_RANGE[1])
             bullet_y_center = (2 / 30) * speed
             bullet_x_center = random.choice([-1, 1]) * bullet_y_center * math.tan(math.radians(angle1))
             bullet_z_center = random.choice([-1, 1]) * bullet_y_center * math.tan(math.radians(angle2))
             
             
+            log(f"Parameters: radius={radius:.2f} mm, speed={speed:.2f} mm/s, angle1={angle1:.2f}°, angle2={angle2:.2f}°")
             #**********************************
             # INSTANTIATING A SIMULATION OBJECT
             #**********************************
@@ -138,11 +143,13 @@ def Main():
                 #*******************
                 simulation_length, simulation_completed = sim.runSimulation( BULLET_RADIUS     = radius,
                                                                              BULLET_SPEED      = speed,
-                                                                             BULLET_X_CENTER   = bullet_x_center,
-                                                                             BULLET_Y_CENTER   = bullet_y_center,
-                                                                             BULLET_Z_CENTER   = bullet_z_center,
+                                                                             #BULLET_X_CENTER   = bullet_x_center,
+                                                                             #BULLET_Y_CENTER   = bullet_y_center,
+                                                                             #BULLET_Z_CENTER   = bullet_z_center,
                                                                              SIMULATION_ID     = idx,
-                                                                             LENGTH_SIDE_RATIO = LENGTH_SIDE_RATIO )
+                                                                             LENGTH_SIDE_RATIO = LENGTH_SIDE_RATIO,
+                                                                             ALPHA_Y           = angle1,
+                                                                             ALPHA_X           = angle2 )
                                                                                
             except Exception as e:
                 
