@@ -26,8 +26,8 @@ def Main():
     # Questo metodo è molto più robusto di sys.argv per Abaqus
     
     # Valori di default (se lanci lo script a mano per test)
-    idx_start = 3
-    idx_end = 4
+    idx_start = 4
+    idx_end = 5
 
     # Controlliamo se il Launcher ci ha passato i dati
     if "ABAQUS_SIM_START" in os.environ and "ABAQUS_SIM_END" in os.environ:

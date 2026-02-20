@@ -25,7 +25,7 @@ class Simulation3D():
 
     def __init__( self ):
 
-        self.DEBUG = True
+        self.DEBUG = False
 
         # PARAMETERS
         self.index          = None
@@ -91,7 +91,7 @@ class Simulation3D():
         # MISCELLANEA
         self.time_period      = None                        # SIMULATION ELAPSED TIME
         #self.output_frequency = 40                         # FREQUENCY OUTPUT
-        self.output_interval = 1.0 / 60.0                   # TIME INTERVAL OUTPUT: saves a snapshot of the simulation every 1/30 seconds (30 fps)
+        self.output_interval = 1.0 / 120.0                   # TIME INTERVAL OUTPUT: saves a snapshot of the simulation every 1/30 seconds (30 fps)
 
 
 
@@ -133,7 +133,7 @@ class Simulation3D():
                        SAVECOORDINATES      = True,
                        SAVEDATABASE         = True, 
                        SAVEPLATECOORDINATES = True,
-                       SAVEJOBINPUT         = True,
+                       SAVEJOBINPUT         = False,
                        SAVEBALLCOORDINATES  = True, ):
               
 
@@ -308,12 +308,10 @@ class Simulation3D():
         part_circle_xz_plane = part_circle.DatumPlaneByPrincipalPlane(principalPlane = abaqusConstants.XZPLANE, offset = 0.0)
         part_circle_yz_plane = part_circle.DatumPlaneByPrincipalPlane(principalPlane = abaqusConstants.YZPLANE, offset = 0.0)
 
-        if self.DEBUG: log("Sospetto")
         # partiziona superficie
         part_circle.PartitionFaceByDatumPlane(faces = part_circle.faces, datumPlane = part_circle.datums[part_circle_xy_plane.id])
         part_circle.PartitionFaceByDatumPlane(faces = part_circle.faces, datumPlane = part_circle.datums[part_circle_xz_plane.id])
         part_circle.PartitionFaceByDatumPlane(faces = part_circle.faces, datumPlane = part_circle.datums[part_circle_yz_plane.id])
-        if self.DEBUG: log("Fatto")
         
         # set con tutta la palla, per il materiale e per il reference point
         part_circle.Set( name  = 'set-all', 
@@ -429,7 +427,7 @@ class Simulation3D():
         # specifica quali campi vogliamo in output e la frequenza
         field = model.FieldOutputRequest( name           = 'F-Output-1', 
                                           createStepName = 'Step-1', 
-                                          variables      = ('S', 'E', 'U', 'UR', 'COORD'), 
+                                          variables      = ('U', 'UR', 'COORD'), 
                                           #frequency      = self.output_frequency
                                           timeInterval   = self.output_interval )
         
@@ -466,6 +464,7 @@ class Simulation3D():
         # (Il Set 'set-all' viene creato automaticamente nell'assembly dall'omonimo Set della parte)
         plate_region = model.rootAssembly.instances['plate'].sets['set-all']
 
+        """
         # Definiamo un valore di soglia per l'energia cinetica (ALLKE)
         # Sotto questo valore, consideriamo l'oscillazione "irrilevante".
         self.ENERGY_THRESHOLD = 0.01 
@@ -477,7 +476,7 @@ class Simulation3D():
                                          operation       = abaqusConstants.MIN,
                                          limit           = self.ENERGY_THRESHOLD, 
                                          halt            = True ) # Ferma l'analisi 
-    
+        
         # Aggiungi una history output request per l'energia cinetica (ALLKE) dell'intera lastra
         model.HistoryOutputRequest( name           = 'H-Output-Plate-Energy', 
                                     createStepName = 'Step-1', 
@@ -485,7 +484,7 @@ class Simulation3D():
                                     variables      = ('ALLKE',), # Energia Cinetica Totale
                                     frequency      = 200,        # Frequenza di campionamento
                                     filter         = "Filter-Energy" )
-    
+        """
         
 
         #----------- BOUNDARY CONDITION -----------#
@@ -670,19 +669,20 @@ class Simulation3D():
             )
 
 
-        #----------- JOB -----------#
+        #----------- JOB -----------
 
         JOB_NAME = "Simulation_Job_" + str(self.index)
         
         # Imposta il numero di core (numCpus). 
         # Metti un numero inferiore ai tuoi core totali (es. se hai 8 core, metti 6).
         # numDomains deve essere uguale a numCpus per Abaqus/Explicit.
-        NUM_CORES = 4
+        NUM_CORES = 2
 
         job      = mdb.Job( name  = JOB_NAME, 
                             model = MODEL_NAME,
                             numCpus = NUM_CORES, 
-                            numDomains = NUM_CORES, 
+                            numDomains = NUM_CORES,
+                            numGPUs = 1,
                             explicitPrecision = abaqusConstants.DOUBLE )
         
         
@@ -708,19 +708,19 @@ class Simulation3D():
         time.sleep(5)  # Aspetta 5 secondi prima di aprire l'ODB
 
         try:
-            odb = session.openOdb(JOB_NAME + '.odb')
+            odb = session.openOdb(JOB_NAME + '.odb', readOnly=True)
         except Exception as e:
             # Se fallisce ancora, aspetta altri 10 secondi e riprova
             print("Odb bloccato, riprovo tra 10 secondi...")
             time.sleep(10)
-            odb = session.openOdb(JOB_NAME + '.odb')
+            odb = session.openOdb(JOB_NAME + '.odb', readOnly=True)
 
 
         #----------- CHECK SIMULATION DURATION AND COMPLETION (FROM ENERGY FILTER) -----------#
 
         # LOADING DATABASE
         # (Nota: Odb viene aperto qui e riutilizzato nel blocco "SAVING OUTPUT IN FILE CSV" sotto)
-        odb = session.openOdb(JOB_NAME + '.odb')
+        odb = session.openOdb(JOB_NAME + '.odb', readOnly=True)
         
         simulation_length = 0.0 # Valore di default
         simulation_completed = False # Valore di default
@@ -744,6 +744,7 @@ class Simulation3D():
             #plate_history_region = odb.steps['Step-1'].historyRegions['ElementSet ASSEMBLY.PLATE.SET-ALL']
             plate_history_region = odb.steps['Step-1'].historyRegions['ElementSet PLATE.SET-ALL']
             
+            """
             # Recupera i dati filtrati (Abaqus nomina l'output 'VARIABILE_FILTRO')
             energy_data = plate_history_region.historyOutputs['ALLKE'].data  #TODO: cambiare nome se si cambia il filtro
             
@@ -752,8 +753,9 @@ class Simulation3D():
             
             # Controlla se il filtro ha funzionato (energia <= soglia)
             simulation_completed = (final_energy <= self.ENERGY_THRESHOLD) 
+            """
 
-            log(f"--- Simulazione {self.index} completata in {elapsed_time:.2f} secondi. ---")
+            
             #log(f"Durata effettiva della simulazione (secondi): {simulation_length}")
             #log(f"Energia cinetica finale della lastra: {final_energy} (Completata: {simulation_completed})")
             # --------------------------------
@@ -763,10 +765,11 @@ class Simulation3D():
             # IndexError: Trovato ma vuoto (simulazione fallita subito)
             simulation_length = odb.steps['Step-1'].frames[-1].frameValue
             simulation_completed = False # Non sappiamo se si e' fermata correttamente
-            log(f"--- Simulazione {self.index} completata (fallback time). ---")
-            log(f"Durata effettiva della simulazione (secondi): {simulation_length}")
-            log("ATTENZIONE: Impossibile leggere il filtro 'ALLKE_FILTER-ENERGY'.")
+            #log(f"--- Simulazione {self.index} completata (fallback time). ---")
+            #log(f"Durata effettiva della simulazione (secondi): {simulation_length}")
+            #log("ATTENZIONE: Impossibile leggere il filtro 'ALLKE_FILTER-ENERGY'.")
 
+        log(f"--- Simulazione {self.index} completata in {elapsed_time:.2f} secondi. ---")
 
         #----------- SAVING OUTPUT IN FILE CSV -----------#
 
@@ -968,6 +971,8 @@ class Simulation3D():
 
         if os.path.exists("abq.app_cache"):
             os.remove("abq.app_cache")
+
+        odb.close()
         
         #******************************
         # RETURNING TO PARENT DIRECTORY

@@ -6,7 +6,7 @@ import gzip
 from odbAccess import openOdb
 
 STRESS_STRAIN_EXTRACTION = False
-DELETE_ODB_AFTER_EXTRACTION = False
+DELETE_ODB_AFTER_EXTRACTION = True
 
 def log(message):
     print(message)

@@ -5,8 +5,8 @@ import sys
 
 # --- CONFIGURAZIONE ---
 TOTAL_SIMULATIONS = 5000
-NUM_PROCESSES = 8       # TI CONSIGLIO DI PARTIRE CON 4, NON 15!
-SCRIPT_NAME = "Main.py"
+NUM_PROCESSES = 4       # TI CONSIGLIO DI PARTIRE CON 4, NON 15!
+SCRIPT_NAME = "Main_RUGBY.py"
 # ----------------------
 
 def run_parallel_simulations():
