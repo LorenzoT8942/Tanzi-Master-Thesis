@@ -1,5 +1,6 @@
 import sys
 import os
+import gzip 
 
 # Aggiunge la directory corrente al path per trovare i moduli custom
 if os.getcwd() not in sys.path: sys.path.append( os.getcwd() )
@@ -71,7 +72,21 @@ def Main():
         pass
 
     for idx in range(idx_start, idx_end):
-            
+
+        #controlla se esiste già una cartella per questa simulazione in ../NewSimulations_RUGBY, se sì salta
+        sim_folder = os.path.join("..", "NewSimulations_RUGBY", "Dynamic_Simulation_" + str(idx), str(idx) + "_output_displacement_all_frames.csv.gz")
+
+        #controlla che nel file idx_output_displacement_all_frames.csv.gz ci siano almeno 120*3.5 righe, altrimenti considera la simulazione incompleta e rilanciala
+        if os.path.exists(sim_folder):
+            with gzip.open(sim_folder, 'rt') as f:
+                num_lines = sum(1 for line in f)
+                if num_lines < 120*3.5*1784: #120 fps * 3.5 secondi * 1784 nodi
+                    print(f"Simulazione {idx} incompleta (solo {num_lines} righe). Rilancio.")
+                    continue
+                else:
+                    print(f"Simulazione {idx} già esistente e completa. Salto.")
+                    continue
+
             log("Simulation " + str(idx))
             start = time.time()
 
