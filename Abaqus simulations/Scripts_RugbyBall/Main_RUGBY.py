@@ -86,79 +86,79 @@ def Main():
                     print(f"Simulazione {idx} già esistente e completa. Salto.")
                     continue
 
-            log("Simulation " + str(idx))
-            start = time.time()
+        log("Simulation " + str(idx))
+        start = time.time()
 
-            # Seed unico basato su ID
-            random.seed(time.time() + idx)
+        # Seed unico basato su ID
+        random.seed(time.time() + idx)
 
-            radius = random.uniform(RADIUS_RANGE[0], RADIUS_RANGE[1])
-            velocity = random.uniform(VELOCITY_RANGE[0], VELOCITY_RANGE[1])
-            alpha_X = random.uniform(ALPHA_X_RANGE[0], ALPHA_X_RANGE[1])
-            alpha_Y = random.uniform(ALPHA_Y_RANGE[0], ALPHA_Y_RANGE[1])
-            spin_X = random.uniform(SPIN_X_RANGE[0], SPIN_X_RANGE[1])
-            spin_Y = random.uniform(SPIN_Y_RANGE[0], SPIN_Y_RANGE[1])
-            spin_Z = random.uniform(SPIN_Z_RANGE[0], SPIN_Z_RANGE[1])
+        radius = random.uniform(RADIUS_RANGE[0], RADIUS_RANGE[1])
+        velocity = random.uniform(VELOCITY_RANGE[0], VELOCITY_RANGE[1])
+        alpha_X = random.uniform(ALPHA_X_RANGE[0], ALPHA_X_RANGE[1])
+        alpha_Y = random.uniform(ALPHA_Y_RANGE[0], ALPHA_Y_RANGE[1])
+        spin_X = random.uniform(SPIN_X_RANGE[0], SPIN_X_RANGE[1])
+        spin_Y = random.uniform(SPIN_Y_RANGE[0], SPIN_Y_RANGE[1])
+        spin_Z = random.uniform(SPIN_Z_RANGE[0], SPIN_Z_RANGE[1])
 
-            log(f"Parametri scelti: Radius={radius:.2f}, Velocity={velocity:.2f}, Alpha_X={alpha_X:.2f}, Alpha_Y={alpha_Y:.2f}, Spin_X={spin_X:.2f}, Spin_Y={spin_Y:.2f}, Spin_Z={spin_Z:.2f}")
+        log(f"Parametri scelti: Radius={radius:.2f}, Velocity={velocity:.2f}, Alpha_X={alpha_X:.2f}, Alpha_Y={alpha_Y:.2f}, Spin_X={spin_X:.2f}, Spin_Y={spin_Y:.2f}, Spin_Z={spin_Z:.2f}")
 
-            sim = Simulation3D()
-            
-            try:
-                (simulation_length, simulation_completed) = sim.runSimulation(
-                    CIRCLE_RADIUS   = radius,
-                    CIRCLE_VELOCITY = velocity,
-                    ALPHA_Y         = alpha_Y,
-                    ALPHA_X         = alpha_X,
-                    SIMULATION_ID   = idx,
-                    SPIN_X          = spin_X,
-                    SPIN_Y          = spin_Y,
-                    SPIN_Z          = spin_Z,
-                    # DISATTIVA L'ESTRAZIONE INTERNA (fondamentale!)
-                    SAVEDISPLACEMENT     = False, 
-                    SAVECOORDINATES      = True,
-                    SAVEPLATECOORDINATES = True,
-                    SAVEBALLCOORDINATES  = False
-                )
-                
-                # --- LANCIO ESTRAZIONE IN BACKGROUND ---
-                # Estraiamo i dati calcolati che servono allo script esterno
-                folder_path = sim.new_path
-                ox = str(sim.circle_origin_x)
-                oy = str(sim.circle_origin_y)
-                oz = str(sim.circle_origin_z)
-                
-                # Costruiamo il comando da lanciare nel terminale
-                # Esempio: abaqus python data_extractor.py 5 "percorso/cartella" 10.0 50.0 0.0
-                extractor_cmd = [
-                    "abaqus", "python", "data_extraction.py", 
-                    str(idx), folder_path, ox, oy, oz
-                ]
-                
-                # Popen lancia il processo e restituisce subito il controllo allo script
-                # shell=True è spesso necessario su Windows per far riconoscere il comando "abaqus"
-                subprocess.Popen(extractor_cmd, shell=True) 
-                
-                log(f"Avviata estrazione in background per la simulazione {idx}")
-                # ---------------------------------------
-
-            except Exception as e:
-                log("ERRORE CRITICO simulazione " + str(idx) + ": " + str(e))
-                simulation_length = 0
-                simulation_completed = "FAILED"
+        sim = Simulation3D()
         
-            simulation_time = str(time.time() - start)
+        try:
+            (simulation_length, simulation_completed) = sim.runSimulation(
+                CIRCLE_RADIUS   = radius,
+                CIRCLE_VELOCITY = velocity,
+                ALPHA_Y         = alpha_Y,
+                ALPHA_X         = alpha_X,
+                SIMULATION_ID   = idx,
+                SPIN_X          = spin_X,
+                SPIN_Y          = spin_Y,
+                SPIN_Z          = spin_Z,
+                # DISATTIVA L'ESTRAZIONE INTERNA (fondamentale!)
+                SAVEDISPLACEMENT     = False, 
+                SAVECOORDINATES      = True,
+                SAVEPLATECOORDINATES = True,
+                SAVEBALLCOORDINATES  = False
+            )
             
-            # Scrittura risultati (rimane uguale)
-            try:
-                with open(INFO_FILE_PATH, 'a', newline='') as info_csv:
-                    info_csv_append = csv.writer(info_csv)
-                    info_csv_append.writerow([idx, simulation_time, simulation_length, simulation_completed, velocity, alpha_X, alpha_Y, radius])
-            except IOError:
-                time.sleep(1)
-                with open(INFO_FILE_PATH, 'a', newline='') as info_csv:
-                    info_csv_append = csv.writer(info_csv)
-                    info_csv_append.writerow([idx, simulation_time, simulation_length, simulation_completed, velocity, alpha_X, alpha_Y, radius])
+            # --- LANCIO ESTRAZIONE IN BACKGROUND ---
+            # Estraiamo i dati calcolati che servono allo script esterno
+            folder_path = sim.new_path
+            ox = str(sim.circle_origin_x)
+            oy = str(sim.circle_origin_y)
+            oz = str(sim.circle_origin_z)
+            
+            # Costruiamo il comando da lanciare nel terminale
+            # Esempio: abaqus python data_extractor.py 5 "percorso/cartella" 10.0 50.0 0.0
+            extractor_cmd = [
+                "abaqus", "python", "data_extraction.py", 
+                str(idx), folder_path, ox, oy, oz
+            ]
+            
+            # Popen lancia il processo e restituisce subito il controllo allo script
+            # shell=True è spesso necessario su Windows per far riconoscere il comando "abaqus"
+            subprocess.Popen(extractor_cmd, shell=True) 
+            
+            log(f"Avviata estrazione in background per la simulazione {idx}")
+            # ---------------------------------------
+
+        except Exception as e:
+            log("ERRORE CRITICO simulazione " + str(idx) + ": " + str(e))
+            simulation_length = 0
+            simulation_completed = "FAILED"
+    
+        simulation_time = str(time.time() - start)
+        
+        # Scrittura risultati (rimane uguale)
+        try:
+            with open(INFO_FILE_PATH, 'a', newline='') as info_csv:
+                info_csv_append = csv.writer(info_csv)
+                info_csv_append.writerow([idx, simulation_time, simulation_length, simulation_completed, velocity, alpha_X, alpha_Y, radius])
+        except IOError:
+            time.sleep(1)
+            with open(INFO_FILE_PATH, 'a', newline='') as info_csv:
+                info_csv_append = csv.writer(info_csv)
+                info_csv_append.writerow([idx, simulation_time, simulation_length, simulation_completed, velocity, alpha_X, alpha_Y, radius])
 
 if __name__ == "__main__":
     Main()
