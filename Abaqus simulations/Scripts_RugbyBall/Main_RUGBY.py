@@ -79,7 +79,9 @@ def Main():
         #controlla che nel file idx_output_displacement_all_frames.csv.gz ci siano almeno 120*3.5 righe, altrimenti considera la simulazione incompleta e rilanciala
         if os.path.exists(sim_folder):
             with gzip.open(sim_folder, 'rt') as f:
-                num_lines = sum(1 for line in f)
+                num_lines = 0
+                for line in f:
+                    num_lines += 1
                 if num_lines < 120*3.5*1784: #120 fps * 3.5 secondi * 1784 nodi
                     print(f"Simulazione {idx} incompleta (solo {num_lines} righe). Rilancio.")
                 else:
