@@ -82,7 +82,6 @@ def Main():
                 num_lines = sum(1 for line in f)
                 if num_lines < 120*3.5*1784: #120 fps * 3.5 secondi * 1784 nodi
                     print(f"Simulazione {idx} incompleta (solo {num_lines} righe). Rilancio.")
-                    continue
                 else:
                     print(f"Simulazione {idx} già esistente e completa. Salto.")
                     continue
